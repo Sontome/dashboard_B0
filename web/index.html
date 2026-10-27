@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>B0 Pulse</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <aside class="sidebar">
+    <div class="brand"><span>◉</span> B0 PULSE</div>
+    <p class="muted">Theo dõi thu hồi B0 / B1</p>
+    <label>Tháng báo cáo</label>
+    <select id="monthSelect"></select>
+    <div class="side-rule"></div>
+    <label>Thêm dữ liệu theo ngày</label>
+    <input id="fileInput" type="file" accept=".xlsx" multiple>
+    <button id="uploadBtn" class="button primary">Nhập file Excel</button>
+    <div id="uploadMessage" class="message"></div>
+    <div class="side-rule"></div>
+    <button id="resetBtn" class="button danger">Reset tháng đang chọn</button>
+  </aside>
+
+  <main>
+    <section class="hero">
+      <div><span id="liveDate" class="pill">ĐANG TẢI</span><h1>Tổng quan thu hồi B0 / B1</h1><p>Cohort hợp đồng có nhóm ban đầu B0 trong tháng.</p></div>
+      <button id="refreshBtn" class="icon-btn" title="Tải lại">↻</button>
+    </section>
+
+    <section id="metrics" class="metrics"></section>
+
+    <section class="panel trend-panel">
+      <div class="panel-head"><div><p class="eyebrow">DIỄN BIẾN</p><h2>Xu hướng B0 / B1</h2></div><div id="legend" class="legend"></div></div>
+      <div id="trendChart" class="chart"></div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-head"><div><p class="eyebrow">ĐÚNG NGÀY</p><h2>Tỷ lệ thanh toán B0 đúng ngày phải đóng</h2><p class="muted-dark">Thanh toán đúng ngày được xác định khi DPD tại thanh toán bằng 0.</p></div></div>
+      <div class="table-wrap daily-wrap"><table><thead><tr><th>Ngày phải đóng</th><th>Số TC đến hạn</th><th>Thanh toán đúng ngày</th><th>Tỷ lệ</th></tr></thead><tbody id="dailyRows"></tbody></table></div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-head"><div><p class="eyebrow">HỢP ĐỒNG</p><h2>Danh sách hợp đồng</h2></div><button id="exportContracts" class="button ghost">Xuất CSV</button></div>
+      <div class="filters">
+        <input id="search" placeholder="Tìm mã TC hoặc tên khách hàng">
+        <select id="statusFilter" aria-label="Lọc trạng thái hợp đồng"></select>
+        <select id="dateFilter"><option value="">Tất cả ngày phải đóng</option></select>
+      </div>
+      <div id="contractCount" class="count"></div>
+      <div class="table-wrap"><table><thead><tr><th>Mã TC</th><th>Khách hàng</th><th>Tỉnh/TP</th><th>Trạng thái</th><th>Ngày phải đóng</th><th>Ngày thanh toán</th><th>DPD trả</th><th>DPD hiện tại</th><th>Dư nợ</th></tr></thead><tbody id="contractRows"></tbody></table></div>
+      <div id="contractPager" class="pager"></div>
+    </section>
+
+    <section class="panel roll-panel">
+      <div class="panel-head"><div><p class="eyebrow orange">ROLL B1</p><h2>Hợp đồng B0 nhảy sang B1 trong tháng</h2><p class="muted-dark">Các TC có DPD cao nhất trong kỳ lớn hơn 0.</p></div><button id="exportRoll" class="button ghost">Xuất Roll B1 CSV</button></div>
+      <div class="roll-filters"><select id="rollStatusFilter" aria-label="Lọc trạng thái Roll B1"></select></div>
+      <div id="rollCount" class="count"></div>
+      <div class="table-wrap"><table><thead><tr><th>Mã TC</th><th>Khách hàng</th><th>Tỉnh/TP</th><th>Ngày phải đóng</th><th>DPD cao nhất</th><th>Trạng thái</th><th>Dư nợ</th></tr></thead><tbody id="rollRows"></tbody></table></div>
+      <div id="rollPager" class="pager"></div>
+    </section>
+  </main>
+  <div id="loading" class="loading"><div class="spinner"></div><b>Đang tính báo cáo tháng…</b></div>
+  <script src="/static/app.js"></script>
+</body>
+</html>
