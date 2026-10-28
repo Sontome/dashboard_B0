@@ -1,13 +1,14 @@
 from __future__ import annotations
 
-import ctypes
 import os
 import sqlite3
+import sys
 import threading
 import urllib.request
 import webbrowser
-from ctypes import wintypes
 from pathlib import Path
+import tkinter as tk
+from tkinter import ttk
 
 import uvicorn
 
@@ -16,75 +17,20 @@ from api import DB, app
 
 PORT = int(os.environ.get("B0PULSE_PORT", "8501"))
 URL = f"http://127.0.0.1:{PORT}"
-APP_TITLE = "B0 Pulse"
-
-WM_DESTROY = 0x0002
-WM_COMMAND = 0x0111
-WM_TIMER = 0x0113
-WM_SETFONT = 0x0030
-BN_CLICKED = 0
-COLOR_WINDOW = 5
-SW_SHOW = 5
-WS_OVERLAPPEDWINDOW = 0x00CF0000
-WS_VISIBLE = 0x10000000
-WS_CHILD = 0x40000000
-BS_PUSHBUTTON = 0
-SS_CENTER = 1
-SS_LEFT = 0
-CW_USEDEFAULT = -2147483648
-
-ID_OPEN = 101
-ID_REFRESH = 102
-ID_STATUS_TIMER = 1
-
-user32 = ctypes.windll.user32
-kernel32 = ctypes.windll.kernel32
-gdi32 = ctypes.windll.gdi32
-
-kernel32.GetModuleHandleW.argtypes = [wintypes.LPCWSTR]
-kernel32.GetModuleHandleW.restype = wintypes.HMODULE
-user32.CreateWindowExW.argtypes = [
-    wintypes.DWORD, wintypes.LPCWSTR, wintypes.LPCWSTR, wintypes.DWORD,
-    ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_int,
-    wintypes.HWND, wintypes.HMENU, wintypes.HINSTANCE, wintypes.LPVOID,
-]
-user32.CreateWindowExW.restype = wintypes.HWND
-user32.DefWindowProcW.argtypes = [
-    wintypes.HWND, wintypes.UINT, wintypes.WPARAM, wintypes.LPARAM
-]
-user32.DefWindowProcW.restype = ctypes.c_ssize_t
-user32.SendMessageW.argtypes = [
-    wintypes.HWND, wintypes.UINT, wintypes.WPARAM, wintypes.LPARAM
-]
-user32.SendMessageW.restype = ctypes.c_ssize_t
-user32.SetWindowTextW.argtypes = [wintypes.HWND, wintypes.LPCWSTR]
-user32.SetWindowTextW.restype = wintypes.BOOL
-user32.SetTimer.argtypes = [wintypes.HWND, ctypes.c_size_t, wintypes.UINT, wintypes.LPVOID]
-user32.SetTimer.restype = ctypes.c_size_t
-gdi32.CreateFontW.restype = wintypes.HANDLE
-
-WNDPROC = ctypes.WINFUNCTYPE(
-    ctypes.c_ssize_t, wintypes.HWND, wintypes.UINT, wintypes.WPARAM, wintypes.LPARAM
-)
-
-
-class WNDCLASS(ctypes.Structure):
-    _fields_ = [
-        ("style", wintypes.UINT),
-        ("lpfnWndProc", WNDPROC),
-        ("cbClsExtra", ctypes.c_int),
-        ("cbWndExtra", ctypes.c_int),
-        ("hInstance", wintypes.HINSTANCE),
-        ("hIcon", wintypes.HICON),
-        ("hCursor", wintypes.HANDLE),
-        ("hbrBackground", wintypes.HBRUSH),
-        ("lpszMenuName", wintypes.LPCWSTR),
-        ("lpszClassName", wintypes.LPCWSTR),
-    ]
+ASSET_ROOT = Path(getattr(sys, "_MEIPASS", Path(__file__).parent)) / "assets"
 
 
 class Launcher:
-    def __init__(self) -> None:
+    def __init__(self):
+        self.root = tk.Tk()
+        self.root.title("B0 Pulse")
+        self.root.geometry("680x560")
+        self.root.minsize(620, 500)
+        self.root.configure(bg="#eef3ef")
+        # A PyInstaller --windowed executable has no stdout/stderr.  Uvicorn's
+        # default color formatter probes stderr.isatty(), which crashes while
+        # constructing Config when stderr is None.  The GUI reports server
+        # state itself, so Uvicorn does not need to install console logging.
         self.server = uvicorn.Server(
             uvicorn.Config(
                 app,
@@ -95,141 +41,121 @@ class Launcher:
                 access_log=False,
             )
         )
-        self.hwnd = None
-        self.status = None
-        self.summary = None
-        self.months = None
-        self.font = gdi32.CreateFontW(
-            -18, 0, 0, 0, 400, 0, 0, 0, 1, 0, 0, 5, 0, "Segoe UI"
-        )
-        self.title_font = gdi32.CreateFontW(
-            -28, 0, 0, 0, 600, 0, 0, 0, 1, 0, 0, 5, 0, "Segoe UI"
-        )
-        self._wndproc_ref = WNDPROC(self._wndproc)
+        self._style()
+        self._icon()
+        self._layout()
+        self.root.protocol("WM_DELETE_WINDOW", self.close)
 
-    @staticmethod
-    def _create_control(kind, text, style, x, y, width, height, parent, control_id=0):
-        return user32.CreateWindowExW(
-            0, kind, text, WS_VISIBLE | WS_CHILD | style, x, y, width, height,
-            parent, control_id, kernel32.GetModuleHandleW(None), None,
-        )
+    def _style(self):
+        style = ttk.Style(self.root)
+        style.theme_use("clam")
+        style.configure("Treeview", background="#ffffff", foreground="#183b34", fieldbackground="#ffffff", rowheight=31, borderwidth=0, font=("Segoe UI", 10))
+        style.configure("Treeview.Heading", background="#e7f0eb", foreground="#365b51", relief="flat", font=("Segoe UI Semibold", 9))
+        style.map("Treeview", background=[("selected", "#d9eee5")], foreground=[("selected", "#153e33")])
+        style.configure("Primary.TButton", background="#24775f", foreground="white", padding=(17, 10), borderwidth=0, font=("Segoe UI Semibold", 10))
+        style.map("Primary.TButton", background=[("active", "#195f4b")])
+        style.configure("Soft.TButton", background="#ffffff", foreground="#28594b", padding=(14, 9), borderwidth=1, font=("Segoe UI Semibold", 9))
 
-    def _set_font(self, control, title=False):
-        user32.SendMessageW(control, WM_SETFONT, self.title_font if title else self.font, True)
+    def _icon(self):
+        ico = ASSET_ROOT / "b0pulse.ico"
+        png = ASSET_ROOT / "b0pulse-icon.png"
+        try:
+            self.root.iconbitmap(str(ico))
+        except tk.TclError:
+            pass
+        try:
+            self.logo = tk.PhotoImage(file=str(png)).subsample(12, 12)
+        except tk.TclError:
+            self.logo = None
 
-    def _layout(self, hwnd):
-        title = self._create_control("STATIC", "B0 PULSE", SS_CENTER, 30, 26, 600, 42, hwnd)
-        self._set_font(title, True)
-        subtitle = self._create_control(
-            "STATIC", "Dashboard theo dõi hợp đồng B0 / B1", SS_CENTER,
-            30, 70, 600, 28, hwnd,
-        )
-        self._set_font(subtitle)
+    def card(self, parent, **kwargs):
+        return tk.Frame(parent, bg="white", highlightthickness=1, highlightbackground="#d9e4de", bd=0, **kwargs)
 
-        self.status = self._create_control(
-            "STATIC", "Đang khởi động server...", SS_CENTER, 30, 116, 600, 30, hwnd
-        )
-        self._set_font(self.status)
-        self.summary = self._create_control(
-            "STATIC", "Dữ liệu hiện có: 0 tháng", SS_LEFT, 55, 174, 550, 30, hwnd
-        )
-        self._set_font(self.summary)
-        self.months = self._create_control(
-            "STATIC", "Chưa có dữ liệu", SS_LEFT, 55, 210, 550, 105, hwnd
-        )
-        self._set_font(self.months)
+    def _layout(self):
+        shell = tk.Frame(self.root, bg="#eef3ef", padx=24, pady=22)
+        shell.pack(fill="both", expand=True)
 
-        open_button = self._create_control(
-            "BUTTON", "Mở dashboard", BS_PUSHBUTTON, 55, 338, 265, 48, hwnd, ID_OPEN
-        )
-        refresh_button = self._create_control(
-            "BUTTON", "Làm mới dữ liệu", BS_PUSHBUTTON, 340, 338, 265, 48, hwnd, ID_REFRESH
-        )
-        self._set_font(open_button)
-        self._set_font(refresh_button)
+        header = self.card(shell, padx=20, pady=17)
+        header.pack(fill="x")
+        if self.logo:
+            tk.Label(header, image=self.logo, bg="white").pack(side="left", padx=(0, 14))
+        titles = tk.Frame(header, bg="white")
+        titles.pack(side="left", fill="x", expand=True)
+        tk.Label(titles, text="B0 PULSE", bg="white", fg="#173e34", font=("Segoe UI Semibold", 18)).pack(anchor="w")
+        tk.Label(titles, text="Dashboard thu hồi B0 / B1", bg="white", fg="#6d837b", font=("Segoe UI", 9)).pack(anchor="w")
+        ttk.Button(header, text="Mở dashboard", style="Primary.TButton", command=lambda: webbrowser.open(URL)).pack(side="right")
 
-        hint = self._create_control(
-            "STATIC", "Giữ cửa sổ này mở trong khi sử dụng dashboard.", SS_CENTER,
-            30, 412, 600, 28, hwnd,
-        )
-        self._set_font(hint)
+        status_card = self.card(shell, padx=18, pady=14)
+        status_card.pack(fill="x", pady=(14, 14))
+        self.light = tk.Canvas(status_card, width=16, height=16, bg="white", highlightthickness=0)
+        self.light.pack(side="left", padx=(0, 10))
+        self.dot = self.light.create_oval(2, 2, 14, 14, fill="#e3a330", outline="#f3d28c")
+        status_text = tk.Frame(status_card, bg="white")
+        status_text.pack(side="left", fill="x", expand=True)
+        self.status = tk.Label(status_text, text="Đang khởi động…", bg="white", fg="#385a51", font=("Segoe UI Semibold", 10))
+        self.status.pack(anchor="w")
+        tk.Label(status_text, text=URL, bg="white", fg="#83978f", font=("Segoe UI", 8)).pack(anchor="w")
+        ttk.Button(status_card, text="Làm mới dữ liệu", style="Soft.TButton", command=self.refresh_data).pack(side="right")
+
+        data_card = self.card(shell, padx=18, pady=16)
+        data_card.pack(fill="both", expand=True)
+        tk.Label(data_card, text="DỮ LIỆU ĐÃ CÓ", bg="white", fg="#2b886c", font=("Segoe UI Semibold", 9)).pack(anchor="w")
+        tk.Label(data_card, text="Danh sách tháng và ngày chốt", bg="white", fg="#173e34", font=("Segoe UI Semibold", 14)).pack(anchor="w", pady=(2, 12))
+        columns = ("month", "days", "count")
+        self.table = ttk.Treeview(data_card, columns=columns, show="headings", height=9)
+        self.table.heading("month", text="Tháng")
+        self.table.heading("days", text="Các ngày đã có dữ liệu")
+        self.table.heading("count", text="Số ngày")
+        self.table.column("month", width=100, anchor="center")
+        self.table.column("days", width=400, anchor="w")
+        self.table.column("count", width=70, anchor="center")
+        scroll = ttk.Scrollbar(data_card, orient="vertical", command=self.table.yview)
+        self.table.configure(yscrollcommand=scroll.set)
+        self.table.pack(side="left", fill="both", expand=True)
+        scroll.pack(side="right", fill="y")
+
+        tk.Label(shell, text="Giữ cửa sổ này mở trong khi sử dụng dashboard.", bg="#eef3ef", fg="#758a82", font=("Segoe UI", 8)).pack(anchor="w", pady=(10, 0))
         self.refresh_data()
 
     def refresh_data(self):
-        rows = []
-        if DB.exists():
-            try:
-                with sqlite3.connect(DB) as con:
-                    rows = con.execute(
-                        "SELECT substr(snapshot_date,1,7), count(DISTINCT snapshot_date) "
-                        "FROM snapshots GROUP BY 1 ORDER BY 1 DESC"
-                    ).fetchall()
-            except sqlite3.Error:
-                rows = []
-        if self.summary:
-            user32.SetWindowTextW(self.summary, f"Dữ liệu hiện có: {len(rows)} tháng")
-            detail = "   |   ".join(
-                f"{month[5:7]}/{month[:4]}: {days} ngày" for month, days in rows[:8]
-            ) or "Chưa có dữ liệu. Mở dashboard để tải file Excel."
-            user32.SetWindowTextW(self.months, detail)
-
-    def _server_ready(self):
+        for item in self.table.get_children():
+            self.table.delete(item)
+        if not DB.exists():
+            return
         try:
-            with urllib.request.urlopen(URL + "/api/months", timeout=0.35) as response:
-                return response.status == 200
-        except Exception:
-            return False
+            con = sqlite3.connect(DB)
+            rows = con.execute("SELECT substr(snapshot_date,1,7), group_concat(DISTINCT snapshot_date), count(DISTINCT snapshot_date) FROM snapshots GROUP BY 1 ORDER BY 1 DESC").fetchall()
+            con.close()
+            for month, raw_dates, count in rows:
+                days = sorted(value[-2:] for value in (raw_dates or "").split(","))
+                label = f"Tháng {month[5:7]}/{month[:4]}"
+                self.table.insert("", "end", values=(label, ", ".join(days), count))
+        except sqlite3.Error:
+            pass
 
-    def _wndproc(self, hwnd, msg, wparam, lparam):
-        if msg == WM_COMMAND:
-            control_id = wparam & 0xFFFF
-            notification = (wparam >> 16) & 0xFFFF
-            if notification == BN_CLICKED and control_id == ID_OPEN:
-                webbrowser.open(URL)
-                return 0
-            if notification == BN_CLICKED and control_id == ID_REFRESH:
-                self.refresh_data()
-                return 0
-        elif msg == WM_TIMER and wparam == ID_STATUS_TIMER:
-            ready = self._server_ready()
-            user32.SetWindowTextW(
-                self.status, f"Sẵn sàng - {URL}" if ready else "Đang khởi động server..."
-            )
-            return 0
-        elif msg == WM_DESTROY:
-            self.server.should_exit = True
-            user32.KillTimer(hwnd, ID_STATUS_TIMER)
-            user32.PostQuitMessage(0)
-            return 0
-        return user32.DefWindowProcW(hwnd, msg, wparam, lparam)
-
-    def run(self):
-        # Start the API first so slow Windows control initialization never delays it.
+    def start(self):
         threading.Thread(target=self.server.run, daemon=True).start()
-        instance = kernel32.GetModuleHandleW(None)
-        window_class = "B0PulseLauncherWindow"
-        wc = WNDCLASS()
-        wc.lpfnWndProc = self._wndproc_ref
-        wc.hInstance = instance
-        wc.hCursor = user32.LoadCursorW(None, 32512)
-        wc.hbrBackground = COLOR_WINDOW + 1
-        wc.lpszClassName = window_class
-        user32.RegisterClassW(ctypes.byref(wc))
+        self.root.after(350, self.check_server)
+        self.root.mainloop()
 
-        self.hwnd = user32.CreateWindowExW(
-            0, window_class, APP_TITLE, WS_OVERLAPPEDWINDOW,
-            CW_USEDEFAULT, CW_USEDEFAULT, 680, 510,
-            None, None, instance, None,
-        )
-        self._layout(self.hwnd)
-        user32.ShowWindow(self.hwnd, SW_SHOW)
-        user32.UpdateWindow(self.hwnd)
-        user32.SetTimer(self.hwnd, ID_STATUS_TIMER, 1200, None)
-        msg = wintypes.MSG()
-        while user32.GetMessageW(ctypes.byref(msg), None, 0, 0) > 0:
-            user32.TranslateMessage(ctypes.byref(msg))
-            user32.DispatchMessageW(ctypes.byref(msg))
+    def check_server(self):
+        try:
+            with urllib.request.urlopen(URL + "/api/months", timeout=0.5) as response:
+                healthy = response.status == 200
+        except Exception:
+            healthy = False
+        if healthy:
+            self.light.itemconfig(self.dot, fill="#28a873", outline="#a5e3c9")
+            self.status.config(text="Đang chạy")
+        else:
+            self.light.itemconfig(self.dot, fill="#e3a330", outline="#f3d28c")
+            self.status.config(text="Đang khởi động…")
+        self.root.after(1800, self.check_server)
+
+    def close(self):
+        self.server.should_exit = True
+        self.root.destroy()
 
 
 if __name__ == "__main__":
-    Launcher().run()
+    Launcher().start()
